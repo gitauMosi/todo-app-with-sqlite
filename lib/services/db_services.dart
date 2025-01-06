@@ -25,7 +25,7 @@ class DatabaseServices {
     final databasePath = join(databaseDirPath, "master_db.db");
     final database = await openDatabase(
       databasePath,
-      version: 1, // Specify the database version
+      version: 1,
       onCreate: (db, version) {
         db.execute('''
           CREATE TABLE IF NOT EXISTS $_taskTablename (
@@ -39,52 +39,61 @@ class DatabaseServices {
     return database;
   }
 
-  void addtask(String task) async {
-    final db = await database;
-    await db.insert(
-     _taskTablename,
-       Map.from({
-        _tasksContentColumn: task,
-        _taskStatusColumn: 0,
-      }),
-    );
+  Future<int> addTask(String task) async {
+    try {
+      final db = await database;
+      return await db.insert(
+        _taskTablename,
+        {
+          _tasksContentColumn: task,
+          _taskStatusColumn: 0,
+        },
+      );
+    } catch (e) {
+      print('Error adding task: $e');
+      return -1; // Return an invalid ID
+    }
   }
 
- Future<List<Task>> getTasks() async {
-  final db = await database;
-  final data = await db.query(_taskTablename);
+  Future<List<Task>> getTasks() async {
+    try {
+      final db = await database;
+      final data = await db.query(_taskTablename);
+      return data.map((e) => Task(
+        id: e[_tasksIdColumn] as int,
+        status: e[_taskStatusColumn] as int,
+        content: e[_tasksContentColumn] as String,
+      )).toList();
+    } catch (e) {
+      print('Error fetching tasks: $e');
+      return [];
+    }
+  }
 
-  // Convert the map list to a list of Task objects
-  List<Task> tasks = data.map((e) {
-    return Task(
-      id: e[_tasksIdColumn] as int,
-      status: e[_taskStatusColumn] as int,
-      content: e[_tasksContentColumn] as String,
-    );
-  }).toList();
+  Future<void> updateTaskStatus(int id, int status) async {
+    try {
+      final db = await database;
+      await db.update(
+        _taskTablename,
+        {_taskStatusColumn: status},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    } catch (e) {
+      print('Error updating task status: $e');
+    }
+  }
 
-  return tasks;
-}
-
-void updateTaskStatus(int id, int status) async {
-  final db = await database;
-  await db.update(_taskTablename,
-    {
-      _taskStatusColumn: status,
-    },
-    where: 'id = ?',
-    whereArgs: [
-      id,
-    ]
-  );
-}
-void deleteTask(int id) async {
-  final db = await database;
-  await db.delete(
-    _taskTablename, 
-    where: '$_tasksIdColumn =?',
-     whereArgs: [id]);
-
-}
-
+  Future<void> deleteTask(int id) async {
+    try {
+      final db = await database;
+      await db.delete(
+        _taskTablename,
+        where: '$_tasksIdColumn = ?',
+        whereArgs: [id],
+      );
+    } catch (e) {
+      print('Error deleting task: $e');
+    }
+  }
 }

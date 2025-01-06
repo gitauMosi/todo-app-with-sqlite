@@ -1,20 +1,16 @@
 import 'package:get/get.dart';
-
 import '../models/task.dart';
 import '../services/db_services.dart';
 
 class TaskController extends GetxController {
   final DatabaseServices _databaseServices = DatabaseServices.instance;
   RxList<Task> taskList = <Task>[].obs;
-  bool isloaded = false;
 
   @override
   void onInit() {
     super.onInit();
     fetchTasks();
-    isloaded = true;
   }
-    
 
   Future<void> fetchTasks() async {
     try {
@@ -25,10 +21,11 @@ class TaskController extends GetxController {
     }
   }
 
-  Future<void> addTask(String task) async {
+  Future<void> addTask(String taskContent) async {
     try {
-       _databaseServices.addtask(task);
-      await fetchTasks(); // Refresh the task list after adding a task
+      final newTaskId = await _databaseServices.addTask(taskContent);
+      final newTask = Task(id: newTaskId, content: taskContent, status: 0);
+      taskList.insert(0, newTask); // Add the new task to the beginning
     } catch (e) {
       print('Failed to add task: $e');
     }
@@ -37,7 +34,10 @@ class TaskController extends GetxController {
   Future<void> deleteTask(int id) async {
     try {
       _databaseServices.deleteTask(id);
-      await fetchTasks(); // Refresh the task list after deleting a task
+      final index = taskList.indexWhere((task) => task.id == id);
+      if (index != -1) {
+        taskList.removeAt(index); // Remove the task locally
+      }
     } catch (e) {
       print('Failed to delete task: $e');
     }
@@ -45,8 +45,16 @@ class TaskController extends GetxController {
 
   Future<void> updateTaskStatus(int id, int status) async {
     try {
-       _databaseServices.updateTaskStatus(id, status);
-      await fetchTasks(); // Refresh the task list after updating a task
+      _databaseServices.updateTaskStatus(id, status);
+      final index = taskList.indexWhere((task) => task.id == id);
+      if (index != -1) {
+        taskList[index] = Task(
+          id: taskList[index].id,
+          content: taskList[index].content,
+          status: status,
+        );
+        taskList.refresh(); // Notify observers of the update
+      }
     } catch (e) {
       print('Failed to update task status: $e');
     }
